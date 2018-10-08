@@ -31,7 +31,7 @@ class StackedAdditiveCouplingFlow(nn.Module):
         mask2 = mask2.byte()
 
         self.flow = SequentialFlow([AffineCouplingLayer(mask=mask1, s=OneLayerMLP(mid, 50), t=OneLayerMLP(mid, 50)),
-                                    AffineCouplingLayer(mask=mask2, s=OneLayerMLP(x_dim - mid, 50), t=OneLayerMLP(x_dim - mid, 50))
+                                    AffineCouplingLayer(mask=mask2, s=OneLayerMLP(x_dim - mid, 50), t=OneLayerMLP(x_dim - mid, 50)),
                                     AffineCouplingLayer(mask=mask1, s=OneLayerMLP(mid, 50), t=OneLayerMLP(mid, 50)),
                                     AffineCouplingLayer(mask=mask2, s=OneLayerMLP(x_dim - mid, 50), t=OneLayerMLP(x_dim - mid, 50)),
                                     AffineCouplingLayer(mask=mask1, s=OneLayerMLP(mid, 50), t=OneLayerMLP(mid, 50)),

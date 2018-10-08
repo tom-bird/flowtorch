@@ -70,6 +70,8 @@ class AffineCouplingLayer(nn.Module):
         self.mask = mask
         self.s = s
         self.t = t
+        self.tanh = nn.Tanh()
+        self.tanh_scale = 2
 
     def forward(self, x):
         """
@@ -84,15 +86,15 @@ class AffineCouplingLayer(nn.Module):
         x2 = torch.masked_select(x, self.mask).view(batch_size, -1)
 
         y1 = x1
-        y2 = torch.exp(self.s(x1))*x2 + self.t(x1)
-        # y2 = (x2 - self.t(x1)) * torch.exp(-self.s(x1))
+        s = self.s(x1)
+        s = self.tanh_scale * self.tanh(s)
+        y2 = torch.exp(s)*x2 + self.t(x1)
 
         y = torch.zeros(x.shape)
         y.masked_scatter_(1 - self.mask, y1)
         y.masked_scatter_(self.mask, y2)
 
-        logdet_j = torch.sum(self.s(x1), dim=1)
-        # logdet_j = -torch.sum(self.s(x1), dim=1)
+        logdet_j = torch.sum(s, dim=1)
         return y, logdet_j
 
     def backward(self, y):
@@ -100,16 +102,17 @@ class AffineCouplingLayer(nn.Module):
         Invert an affine coupling
         x1 = y1
         x2 = (y2 - t(y1)) .* exp(-s(y1))
-        y2 = x2.*exp(s(x1)) + t(x1)
         """
         batch_size, _ = y.shape
         y1 = torch.masked_select(y, 1 - self.mask).view(batch_size, -1)
         y2 = torch.masked_select(y, self.mask).view(batch_size, -1)
 
         x1 = y1
-        x2 = (y2 - self.t(y1)) * torch.exp(-self.s(y1))
-        # x2 = torch.exp(self.s(y1)) * y2 + self.t(y1)
+        s = self.s(y1)
+        s = self.tanh_scale * self.tanh(s)
+        x2 = torch.exp(-s) * (y2 - self.t(y1))
         x = torch.zeros(y.shape)
+
         x.masked_scatter_(1 - self.mask, x1)
         x.masked_scatter_(self.mask, x2)
         return x
