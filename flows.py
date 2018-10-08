@@ -2,6 +2,24 @@ import torch
 from torch import nn
 
 
+class SequentialFlow(nn.Module):
+    def __init__(self, flows):
+        super().__init__()
+        self.flows = nn.ModuleList(flows)
+
+    def forward(self, x):
+        h = x
+        for flow in self.flows:
+            h = flow.forward(h)
+        return h
+
+    def backward(self, y):
+        h = y
+        for flow in self.flows[::-1]:
+            h = flow.backward(h)
+        return h
+
+
 class AdditiveCouplingLayer(nn.Module):
     def __init__(self, mask, conditioner):
         super().__init__()
@@ -31,8 +49,9 @@ class AdditiveCouplingLayer(nn.Module):
         x1 = y1
         x2 = y2 - m(y1)
         """
-        y1 = torch.masked_select(y, 1 - self.mask)
-        y2 = torch.masked_select(y, self.mask)
+        batch_size, _ = y.shape
+        y1 = torch.masked_select(y, 1 - self.mask).view(batch_size, -1)
+        y2 = torch.masked_select(y, self.mask).view(batch_size, -1)
 
         x1 = y1
         x2 = y2 - self.conditioner(y1)

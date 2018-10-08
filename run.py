@@ -60,16 +60,12 @@ if __name__ == '__main__':
                        transform=transforms.ToTensor()),
         batch_size=batch_size, shuffle=True)
 
-    recon_dataset = datasets.MNIST('../data', train=False, download=True,
-                                   transform=transforms.ToTensor()).test_data[:32]\
-                            .float()/255.
-
     try:
         for epoch in range(1, epochs + 1):
             train(model, epoch, train_loader, optimizer)
             test(model, epoch, test_loader)
-            # model.reconstruct(recon_dataset, epoch)
-            # model.sample(epoch)
+            model.sample(n=64, epoch=epoch)
     except KeyboardInterrupt:
-        torch.save(model.state_dict(), 'saved_params/torch_binary_vae_params_new')
-    torch.save(model.state_dict(), 'saved_params/torch_binary_vae_params_new')
+        pass
+    #     torch.save(model.state_dict(), 'saved_params/torch_binary_vae_params_new')
+    # torch.save(model.state_dict(), 'saved_params/torch_binary_vae_params_new')
