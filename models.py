@@ -3,10 +3,10 @@ from torch import nn
 from torch.distributions import Normal
 from torchvision.utils import save_image
 
-from flows import AdditiveCouplingLayer, SequentialFlow
+from flows import AdditiveCouplingLayer, SequentialFlow, AffineCouplingLayer
 
 
-class SimpleConditioner(nn.Module):
+class OneLayerMLP(nn.Module):
     def __init__(self, x_dim, hidden_dim):
         super().__init__()
         self.fc1 = nn.Linear(x_dim, hidden_dim)
@@ -30,14 +30,14 @@ class StackedAdditiveCouplingFlow(nn.Module):
         mask1 = mask1.byte()
         mask2 = mask2.byte()
 
-        self.flow = SequentialFlow([AdditiveCouplingLayer(mask=mask1, conditioner=SimpleConditioner(mid, 50)),
-                                    AdditiveCouplingLayer(mask=mask2, conditioner=SimpleConditioner(x_dim - mid, 50)),
-                                    AdditiveCouplingLayer(mask=mask1, conditioner=SimpleConditioner(mid, 50)),
-                                    AdditiveCouplingLayer(mask=mask2, conditioner=SimpleConditioner(x_dim - mid, 50)),
-                                    AdditiveCouplingLayer(mask=mask1, conditioner=SimpleConditioner(mid, 50)),
-                                    AdditiveCouplingLayer(mask=mask2, conditioner=SimpleConditioner(x_dim - mid, 50)),
-                                    AdditiveCouplingLayer(mask=mask1, conditioner=SimpleConditioner(mid, 50)),
-                                    AdditiveCouplingLayer(mask=mask2, conditioner=SimpleConditioner(x_dim - mid, 50))
+        self.flow = SequentialFlow([AffineCouplingLayer(mask=mask1, s=OneLayerMLP(mid, 50), t=OneLayerMLP(mid, 50)),
+                                    AffineCouplingLayer(mask=mask2, s=OneLayerMLP(x_dim - mid, 50), t=OneLayerMLP(x_dim - mid, 50))
+                                    AffineCouplingLayer(mask=mask1, s=OneLayerMLP(mid, 50), t=OneLayerMLP(mid, 50)),
+                                    AffineCouplingLayer(mask=mask2, s=OneLayerMLP(x_dim - mid, 50), t=OneLayerMLP(x_dim - mid, 50)),
+                                    AffineCouplingLayer(mask=mask1, s=OneLayerMLP(mid, 50), t=OneLayerMLP(mid, 50)),
+                                    AffineCouplingLayer(mask=mask2, s=OneLayerMLP(x_dim - mid, 50), t=OneLayerMLP(x_dim - mid, 50)),
+                                    AffineCouplingLayer(mask=mask1, s=OneLayerMLP(mid, 50), t=OneLayerMLP(mid, 50)),
+                                    AffineCouplingLayer(mask=mask2, s=OneLayerMLP(x_dim - mid, 50), t=OneLayerMLP(x_dim - mid, 50))
                                     ])
 
     def forward(self, x):
@@ -48,8 +48,8 @@ class StackedAdditiveCouplingFlow(nn.Module):
 
     def loss(self, x):
         """Additive coupling layers have unit jacobian so we can just optimise the log probs"""
-        y = self.forward(x.view(-1, self.x_dim))
-        return - torch.mean(torch.sum(Normal(0, 1).log_prob(y), dim=1)) / 784.
+        y, logdet_j = self.forward(x.view(-1, self.x_dim))
+        return - torch.mean(torch.sum(Normal(0, 1).log_prob(y), dim=1) + logdet_j) / 784.
 
     def sample(self, n, epoch):
         y = Normal(0, 1).sample((n, 784))

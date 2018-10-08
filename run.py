@@ -8,7 +8,7 @@ import numpy as np
 
 from models import StackedAdditiveCouplingFlow
 
-torch.manual_seed(17)
+torch.manual_seed(0)
 
 
 def train(model, epoch, data_loader, optimizer, log_interval=10):
