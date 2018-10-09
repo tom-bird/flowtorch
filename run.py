@@ -8,11 +8,11 @@ from models import StackedAdditiveCouplingFlow
 torch.manual_seed(0)
 
 
-def train(model, epoch, data_loader, optimizer, log_interval=10):
+def train(model, device, epoch, data_loader, optimizer, log_interval=10):
     model.train()
     losses = []
     for batch_idx, (data, _) in enumerate(train_loader):
-        data = data
+        data = data.to(device)
         optimizer.zero_grad()
         loss = model.loss(data)
         loss.backward()
@@ -28,10 +28,11 @@ def train(model, epoch, data_loader, optimizer, log_interval=10):
           epoch, np.mean(losses)))
 
 
-def test(model, epoch, data_loader):
+def test(model, device, epoch, data_loader):
     model.eval()
     losses = []
     for data, _ in data_loader:
+        data = data.to(device)
         loss = model.loss(data)
         losses.append(loss.item())
     print('\nEpoch: {}\tTest loss: {:.6f}\n\n'.format(
@@ -42,9 +43,12 @@ def test(model, epoch, data_loader):
 if __name__ == '__main__':
     epochs = 20
     batch_size = 100
-    randomise_data = True
 
-    model = StackedAdditiveCouplingFlow(784)
+    use_cuda = torch.cuda.is_available()
+    device = torch.device("cuda" if use_cuda else "cpu")
+    kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
+
+    model = StackedAdditiveCouplingFlow(784, cuda=use_cuda).to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
     train_loader = torch.utils.data.DataLoader(
@@ -59,9 +63,9 @@ if __name__ == '__main__':
 
     try:
         for epoch in range(1, epochs + 1):
-            train(model, epoch, train_loader, optimizer)
-            test(model, epoch, test_loader)
-            model.sample(n=64, epoch=epoch)
+            train(model, device, epoch, train_loader, optimizer)
+            test(model, device, epoch, test_loader)
+            model.sample(device, n=64, epoch=epoch)
     except KeyboardInterrupt:
         pass
     #     torch.save(model.state_dict(), 'saved_params/torch_binary_vae_params_new')
