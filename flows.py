@@ -34,7 +34,7 @@ class AffineCouplingLayer(nn.Module):
         self.s = s
         self.t = t
         self.tanh = nn.Tanh()
-        self.tanh_scale = 2
+        self.tanh_scale = nn.Parameter(torch.tensor(1.))
         self.cuda = cuda
 
     def forward(self, x):
