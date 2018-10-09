@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.distributions import Normal
+import torch.functional as F
 from torchvision.utils import save_image
 import numpy as np
 
@@ -11,13 +12,15 @@ class MLP(nn.Module):
     def __init__(self, layers):
         super().__init__()
         self.layers = nn.ModuleList(nn.Linear(*layer) for layer in layers)
+        self.bn = nn.ModuleList(nn.BatchNorm1d(layer[-1]) for layer in layers)
         self.nonlin = nn.ReLU()
 
     def forward(self, x):
         x_shape = x.shape
         h = x.view(x_shape[0], -1)
-        for layer in self.layers:
+        for layer, bn in zip(self.layers, self.bn):
             h = layer(h)
+            h = bn(h)
             h = self.nonlin(h)
         return h.view(*x_shape)
 
@@ -55,6 +58,7 @@ class StackedAffineCouplingFlow(nn.Module):
         self.register_buffer('prior_mean', torch.zeros(1))
         self.register_buffer('prior_std', torch.ones(1))
         self.x_shape = x_shape
+        self.sigmoid = nn.Sigmoid()
         self.cuda = cuda
 
         # checkerboard mask
@@ -96,4 +100,5 @@ class StackedAffineCouplingFlow(nn.Module):
     def sample(self, device, n, epoch):
         y = Normal(0, 1).sample((n, 1, 28, 28)).to(device)
         x = self.backward(y)
+        x = self.sigmoid(x)  # move back from logit space to x space
         save_image(x.view(-1, *self.x_shape), 'results/samples_epoch{}.png'.format(epoch))

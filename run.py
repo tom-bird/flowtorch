@@ -40,6 +40,26 @@ def test(model, device, epoch, data_loader):
     ))
 
 
+class Dequantise:
+    def __call__(self, pic):
+        t = torch.ByteTensor(torch.ByteStorage.from_buffer(pic.tobytes()))
+        t = t.float()
+        t = t.view(-1, *pic.size)
+
+        # add uniform noise to each pixel
+        eps = 1e-3  # if we dont clamp then we can get divergent logit
+        noise = torch.clamp(torch.rand(t.shape), eps, 1 - eps)
+        t = t + noise
+
+        # rescale
+        alpha = 0.05
+        t = alpha + (1 - alpha) * t/256.
+
+        # convert to logit
+        t = torch.log(t) - torch.log(1 - t)
+        return t
+
+
 if __name__ == '__main__':
     epochs = 20
     batch_size = 100
@@ -53,12 +73,12 @@ if __name__ == '__main__':
 
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST('../data', train=True, download=True,
-                       transform=transforms.ToTensor()),
+                       transform=Dequantise()),
         batch_size=batch_size, shuffle=True)
 
     test_loader = torch.utils.data.DataLoader(
         datasets.MNIST('../data', train=False, download=True,
-                       transform=transforms.ToTensor()),
+                       transform=Dequantise()),
         batch_size=batch_size, shuffle=True)
 
     try:
