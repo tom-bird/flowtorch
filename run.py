@@ -1,9 +1,9 @@
 import torch.utils.data
-from torch import nn, optim
+from torch import optim
 from torchvision import datasets, transforms
 import numpy as np
 
-from models import StackedAdditiveCouplingFlow
+from models import StackedAffineCouplingFlow
 
 torch.manual_seed(0)
 
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     device = torch.device("cuda" if use_cuda else "cpu")
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
 
-    model = StackedAdditiveCouplingFlow(784, cuda=use_cuda).to(device)
+    model = StackedAffineCouplingFlow(x_shape=(1, 28, 28), cuda=use_cuda).to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
     train_loader = torch.utils.data.DataLoader(

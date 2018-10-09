@@ -10,7 +10,7 @@ class SequentialFlow(nn.Module):
 
     def forward(self, x):
         h = x
-        batch_size, _ = x.shape
+        batch_size, *_ = x.shape
         logdet_j = torch.zeros(batch_size)
         if self.cuda:
             logdet_j = logdet_j.cuda()
@@ -45,22 +45,16 @@ class AffineCouplingLayer(nn.Module):
 
         Return the transformed tensor plus log(det(J))
         """
-        batch_size, _ = x.shape
-        x1 = torch.masked_select(x, 1 - self.mask).view(batch_size, -1)
-        x2 = torch.masked_select(x, self.mask).view(batch_size, -1)
+        x1 = (1 - self.mask) * x
+        x2 = self.mask * x
 
         y1 = x1
         s = self.s(x1)
         s = self.tanh_scale * self.tanh(s)
         y2 = torch.exp(s)*x2 + self.t(x1)
 
-        y = torch.zeros(x.shape)
-        if self.cuda:
-            y = y.cuda()
-        y.masked_scatter_(1 - self.mask, y1)
-        y.masked_scatter_(self.mask, y2)
-
-        logdet_j = torch.sum(s, dim=1)
+        y = y1 + y2 * self.mask
+        logdet_j = torch.sum(s, dim=[1, 2, 3])
         return y, logdet_j
 
     def backward(self, y):
@@ -69,20 +63,15 @@ class AffineCouplingLayer(nn.Module):
         x1 = y1
         x2 = (y2 - t(y1)) .* exp(-s(y1))
         """
-        batch_size, _ = y.shape
-        y1 = torch.masked_select(y, 1 - self.mask).view(batch_size, -1)
-        y2 = torch.masked_select(y, self.mask).view(batch_size, -1)
+        y1 = (1 - self.mask) * y
+        y2 = self.mask * y
 
         x1 = y1
         s = self.s(y1)
         s = self.tanh_scale * self.tanh(s)
         x2 = torch.exp(-s) * (y2 - self.t(y1))
 
-        x = torch.zeros(y.shape)
-        if self.cuda:
-            x = x.cuda()
-        x.masked_scatter_(1 - self.mask, x1)
-        x.masked_scatter_(self.mask, x2)
+        x = x1 + x2 * self.mask
         return x
 
 

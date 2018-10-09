@@ -3,5 +3,6 @@
 TODO:
 * batch norm
 * resnet
-* learn tanh scaling
-* dequantise
+* dequantise and train on logits
+* reduce dimension by splitting throughout
+* replicate the real NVP architecture
