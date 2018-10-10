@@ -76,29 +76,19 @@ class AffineCouplingLayer(nn.Module):
 
 
 class BatchNormLayer(nn.Module):
-    def __init__(self):
+    def __init__(self, momentum=0.9):
         super().__init__()
-        self.acc_x = 0
-        self.acc_x_sq = 0
-        # self.register_buffer('acc_x', torch.zeros((1, 28, 28), requires_grad=False))
-        # self.register_buffer('acc_x_sq', torch.zeros((1, 28, 28), requires_grad=False))
-        self.n = 0
+        self.mu = 0
+        self.sigma_sq = 1
+        self.momentum = momentum
 
     def forward(self, x, eps=1e-6):
-        mu = torch.mean(x, dim=0)
-        sigma_sq = torch.mean((x-mu)**2, dim=0)
-        print('mu_sq: {:.3f}, sigma_sq: {:.3f}'.format(torch.mean(mu**2).item(),
-                                                       torch.mean(sigma_sq).item()))
+        mu = torch.mean(x, dim=0).detach()
+        sigma_sq = torch.mean((x-mu)**2, dim=0).detach()
+        self.mu = self.momentum*self.mu + (1-self.momentum)*mu
+        self.sigma_sq = self.momentum*self.sigma_sq + (1-self.momentum)*sigma_sq
 
-        # add to the accumulated stats
-        batch_size, *dims = x.shape
-        # self.acc_mu = (self.acc_mu * self.n + mu * batch_size) / (self.n + batch_size)
-        if self.n < 1e12:
-            self.acc_x += torch.sum(x, dim=0).detach()
-            self.acc_x_sq += torch.sum(x**2, dim=0).detach()
-            self.n += batch_size
-
-        y = (x - mu) / (sigma_sq + eps)**0.5
+        y = (x - self.mu) / (self.sigma_sq + eps)**0.5
         # logdet_j = -0.5 * torch.sum(torch.log(sigma_sq))
         logdet_j = 0  # there are no trainable params in this, so dont bother
         return y, logdet_j
@@ -106,9 +96,7 @@ class BatchNormLayer(nn.Module):
     def backward(self, y, eps=1e-6):
         """We will only do this to generate samples.
         Can use the average stats, ie not just for minibatch"""
-        mu = self.acc_x / float(self.n)
-        sigma_sq = self.acc_x_sq / float(self.n) - mu**2
-        print('\nBackwards:')
-        print(mu, sigma_sq)
+        # mu = self.acc_x / float(self.n)
+        # sigma_sq = self.acc_x_sq / float(self.n) - mu**2
 
-        return y * (sigma_sq + eps)**0.5 + mu
+        return y * (self.sigma_sq + eps)**0.5 + self.mu

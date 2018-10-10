@@ -79,13 +79,14 @@ class StackedAffineCouplingFlow(nn.Module):
         get_net = lambda: MLP([(784, 256), (256, 256), (256, 784)])
 
         self.flow = SequentialFlow([AffineCouplingLayer(mask=mask1, s=get_net(), t=get_net(), cuda=cuda),
+                                    BatchNormLayer(),
                                     AffineCouplingLayer(mask=mask2, s=get_net(), t=get_net(), cuda=cuda),
                                     BatchNormLayer(),
                                     AffineCouplingLayer(mask=mask1, s=get_net(), t=get_net(), cuda=cuda),
+                                    BatchNormLayer(),
                                     AffineCouplingLayer(mask=mask2, s=get_net(), t=get_net(), cuda=cuda),
                                     BatchNormLayer(),
                                     AffineCouplingLayer(mask=mask1, s=get_net(), t=get_net(), cuda=cuda),
-                                    AffineCouplingLayer(mask=mask2, s=get_net(), t=get_net(), cuda=cuda),
                                     ], cuda=cuda)
 
     def forward(self, x):
