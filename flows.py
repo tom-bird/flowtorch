@@ -75,12 +75,40 @@ class AffineCouplingLayer(nn.Module):
         return x
 
 
-if __name__ == '__main__':
-    mask = torch.tensor([1, 1, 0, 0]).byte()
-    conditioner = nn.Linear(2, 2)
-    affine_layer = AdditiveCouplingLayer(mask, conditioner)
-    x = torch.tensor([0.1, 0.5, 1.0, 0.2])
-    y = affine_layer.forward(x)
-    print(y)
-    recon_x = affine_layer.backward(y)
-    print(recon_x)
+class BatchNormLayer(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.acc_x = 0
+        self.acc_x_sq = 0
+        # self.register_buffer('acc_x', torch.zeros((1, 28, 28), requires_grad=False))
+        # self.register_buffer('acc_x_sq', torch.zeros((1, 28, 28), requires_grad=False))
+        self.n = 0
+
+    def forward(self, x, eps=1e-6):
+        mu = torch.mean(x, dim=0)
+        sigma_sq = torch.mean((x-mu)**2, dim=0)
+        print('mu_sq: {:.3f}, sigma_sq: {:.3f}'.format(torch.mean(mu**2).item(),
+                                                       torch.mean(sigma_sq).item()))
+
+        # add to the accumulated stats
+        batch_size, *dims = x.shape
+        # self.acc_mu = (self.acc_mu * self.n + mu * batch_size) / (self.n + batch_size)
+        if self.n < 1e12:
+            self.acc_x += torch.sum(x, dim=0).detach()
+            self.acc_x_sq += torch.sum(x**2, dim=0).detach()
+            self.n += batch_size
+
+        y = (x - mu) / (sigma_sq + eps)**0.5
+        # logdet_j = -0.5 * torch.sum(torch.log(sigma_sq))
+        logdet_j = 0  # there are no trainable params in this, so dont bother
+        return y, logdet_j
+
+    def backward(self, y, eps=1e-6):
+        """We will only do this to generate samples.
+        Can use the average stats, ie not just for minibatch"""
+        mu = self.acc_x / float(self.n)
+        sigma_sq = self.acc_x_sq / float(self.n) - mu**2
+        print('\nBackwards:')
+        print(mu, sigma_sq)
+
+        return y * (sigma_sq + eps)**0.5 + mu

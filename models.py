@@ -5,7 +5,7 @@ import torch.functional as F
 from torchvision.utils import save_image
 import numpy as np
 
-from flows import SequentialFlow, AffineCouplingLayer
+from flows import SequentialFlow, AffineCouplingLayer, BatchNormLayer
 
 
 class MLP(nn.Module):
@@ -80,8 +80,10 @@ class StackedAffineCouplingFlow(nn.Module):
 
         self.flow = SequentialFlow([AffineCouplingLayer(mask=mask1, s=get_net(), t=get_net(), cuda=cuda),
                                     AffineCouplingLayer(mask=mask2, s=get_net(), t=get_net(), cuda=cuda),
+                                    BatchNormLayer(),
                                     AffineCouplingLayer(mask=mask1, s=get_net(), t=get_net(), cuda=cuda),
                                     AffineCouplingLayer(mask=mask2, s=get_net(), t=get_net(), cuda=cuda),
+                                    BatchNormLayer(),
                                     AffineCouplingLayer(mask=mask1, s=get_net(), t=get_net(), cuda=cuda),
                                     AffineCouplingLayer(mask=mask2, s=get_net(), t=get_net(), cuda=cuda),
                                     ], cuda=cuda)
