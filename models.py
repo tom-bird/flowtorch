@@ -12,16 +12,17 @@ class MLP(nn.Module):
     def __init__(self, layers):
         super().__init__()
         self.layers = nn.ModuleList(nn.Linear(*layer) for layer in layers)
-        self.bn = nn.ModuleList(nn.BatchNorm1d(layer[-1]) for layer in layers)
+        self.bn = nn.ModuleList(nn.BatchNorm1d(layer[-1]) for layer in layers[:-1])
         self.nonlin = nn.ReLU()
 
     def forward(self, x):
         x_shape = x.shape
         h = x.view(x_shape[0], -1)
-        for layer, bn in zip(self.layers, self.bn):
+        for layer, bn in zip(self.layers[:-1], self.bn):
             h = layer(h)
             h = bn(h)
             h = self.nonlin(h)
+        h = self.layers[-1](h)
         return h.view(*x_shape)
 
 
@@ -78,15 +79,16 @@ class StackedAffineCouplingFlow(nn.Module):
         #                                 ConvResBlock(16), nn.Conv2d(16, 1, 3, padding=1))
         get_net = lambda: MLP([(784, 256), (256, 256), (256, 784)])
 
-        self.flow = SequentialFlow([AffineCouplingLayer(mask=mask1, s=get_net(), t=get_net(), cuda=cuda),
+        self.flow = SequentialFlow([AffineCouplingLayer(mask=mask1, s=get_net(), t=get_net()),
                                     BatchNormLayer(),
-                                    AffineCouplingLayer(mask=mask2, s=get_net(), t=get_net(), cuda=cuda),
+                                    AffineCouplingLayer(mask=mask2, s=get_net(), t=get_net()),
                                     BatchNormLayer(),
-                                    AffineCouplingLayer(mask=mask1, s=get_net(), t=get_net(), cuda=cuda),
+                                    AffineCouplingLayer(mask=mask1, s=get_net(), t=get_net()),
                                     BatchNormLayer(),
-                                    AffineCouplingLayer(mask=mask2, s=get_net(), t=get_net(), cuda=cuda),
+                                    AffineCouplingLayer(mask=mask2, s=get_net(), t=get_net()),
                                     BatchNormLayer(),
-                                    AffineCouplingLayer(mask=mask1, s=get_net(), t=get_net(), cuda=cuda),
+                                    AffineCouplingLayer(mask=mask1, s=get_net(), t=get_net()),
+                                    AffineCouplingLayer(mask=mask2, s=get_net(), t=get_net()),
                                     ], cuda=cuda)
 
     def forward(self, x):

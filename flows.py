@@ -28,14 +28,13 @@ class SequentialFlow(nn.Module):
 
 
 class AffineCouplingLayer(nn.Module):
-    def __init__(self, mask, s, t, cuda=False):
+    def __init__(self, mask, s, t):
         super().__init__()
         self.mask = mask
         self.s = s
         self.t = t
         self.tanh = nn.Tanh()
         self.tanh_scale = nn.Parameter(torch.tensor(1.))
-        self.cuda = cuda
 
     def forward(self, x):
         """
@@ -89,14 +88,8 @@ class BatchNormLayer(nn.Module):
         self.sigma_sq = self.momentum*self.sigma_sq + (1-self.momentum)*sigma_sq
 
         y = (x - self.mu) / (self.sigma_sq + eps)**0.5
-        # logdet_j = -0.5 * torch.sum(torch.log(sigma_sq))
         logdet_j = 0  # there are no trainable params in this, so dont bother
         return y, logdet_j
 
     def backward(self, y, eps=1e-6):
-        """We will only do this to generate samples.
-        Can use the average stats, ie not just for minibatch"""
-        # mu = self.acc_x / float(self.n)
-        # sigma_sq = self.acc_x_sq / float(self.n) - mu**2
-
         return y * (self.sigma_sq + eps)**0.5 + self.mu
