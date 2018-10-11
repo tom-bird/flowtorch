@@ -17,7 +17,7 @@ def train(model, device, epoch, data_loader, optimizer, log_interval=10):
         optimizer.zero_grad()
         loss = model.loss(data)
         loss.backward()
-        clip_grad_norm_(model.parameters(), 0.1)
+        clip_grad_norm_(model.parameters(), 10.)
         losses.append(loss.item())
         optimizer.step()
         if batch_idx % log_interval == 0:
@@ -63,7 +63,7 @@ class Dequantise:
 
 
 if __name__ == '__main__':
-    epochs = 80
+    epochs = 200
     batch_size = 100
 
     use_cuda = torch.cuda.is_available()
@@ -76,15 +76,16 @@ if __name__ == '__main__':
     train_loader = torch.utils.data.DataLoader(
         datasets.MNIST('../data', train=True, download=True,
                        transform=Dequantise()),
-        batch_size=batch_size, shuffle=True)
+        batch_size=batch_size, shuffle=True, **kwargs)
 
     test_loader = torch.utils.data.DataLoader(
         datasets.MNIST('../data', train=False, download=True,
                        transform=Dequantise()),
-        batch_size=batch_size, shuffle=True)
+        batch_size=batch_size, shuffle=True, **kwargs)
 
     try:
         for epoch in range(1, epochs + 1):
+            model.print_param_norms()
             train(model, device, epoch, train_loader, optimizer)
             test(model, device, epoch, test_loader)
             model.sample(device, n=64, epoch=epoch)

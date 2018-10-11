@@ -113,3 +113,7 @@ class StackedAffineCouplingFlow(nn.Module):
         x = self.backward(y)
         x = self.sigmoid(x)  # move back from logit space to x space
         save_image(x.view(-1, *self.x_shape), 'results/samples_epoch{}.png'.format(epoch))
+
+    def print_param_norms(self):
+        for i, p in enumerate(self.parameters()):
+            print('param {} norm: {:.3f}'.format(i, p.norm().item()))
