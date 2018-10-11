@@ -77,19 +77,20 @@ class AffineCouplingLayer(nn.Module):
 class BatchNormLayer(nn.Module):
     def __init__(self, momentum=0.9):
         super().__init__()
-        self.mu = 0
-        self.sigma_sq = 1
-        self.momentum = momentum
+        self.register_buffer('mu', torch.zeros(1))
+        self.register_buffer('sigma_sq', torch.ones(1))
+        self.register_buffer('momentum', torch.tensor([momentum]))
 
-    def forward(self, x, eps=1e-6):
-        mu = torch.mean(x, dim=0).detach()
-        sigma_sq = torch.mean((x-mu)**2, dim=0).detach()
-        self.mu = self.momentum*self.mu + (1-self.momentum)*mu
-        self.sigma_sq = self.momentum*self.sigma_sq + (1-self.momentum)*sigma_sq
+    def forward(self, x, eps=1e-5):
+        if self.train:
+            mu = torch.mean(x, dim=0).detach()
+            sigma_sq = torch.mean((x-mu)**2, dim=0).detach()
+            self.mu = self.momentum*self.mu + (1-self.momentum)*mu
+            self.sigma_sq = self.momentum*self.sigma_sq + (1-self.momentum)*sigma_sq
 
         y = (x - self.mu) / (self.sigma_sq + eps)**0.5
         logdet_j = 0  # there are no trainable params in this, so dont bother
         return y, logdet_j
 
-    def backward(self, y, eps=1e-6):
+    def backward(self, y, eps=1e-5):
         return y * (self.sigma_sq + eps)**0.5 + self.mu

@@ -1,5 +1,6 @@
 import torch.utils.data
 from torch import optim
+from torch.nn.utils import clip_grad_norm_
 from torchvision import datasets, transforms
 import numpy as np
 
@@ -16,6 +17,7 @@ def train(model, device, epoch, data_loader, optimizer, log_interval=10):
         optimizer.zero_grad()
         loss = model.loss(data)
         loss.backward()
+        clip_grad_norm_(model.parameters(), 0.1)
         losses.append(loss.item())
         optimizer.step()
         if batch_idx % log_interval == 0:
@@ -47,7 +49,7 @@ class Dequantise:
         t = t.view(-1, *pic.size)
 
         # add uniform noise to each pixel
-        eps = 1e-3  # if we dont clamp then we can get divergent logit
+        eps = 1e-4  # if we dont clamp then we can get divergent logit
         noise = torch.clamp(torch.rand(t.shape), eps, 1 - eps)
         t = t + noise
 
@@ -61,7 +63,7 @@ class Dequantise:
 
 
 if __name__ == '__main__':
-    epochs = 20
+    epochs = 80
     batch_size = 100
 
     use_cuda = torch.cuda.is_available()
@@ -88,5 +90,5 @@ if __name__ == '__main__':
             model.sample(device, n=64, epoch=epoch)
     except KeyboardInterrupt:
         pass
-    #     torch.save(model.state_dict(), 'saved_params/torch_binary_vae_params_new')
-    # torch.save(model.state_dict(), 'saved_params/torch_binary_vae_params_new')
+        torch.save(model.state_dict(), 'saved_models/stacked_affine_new')
+    torch.save(model.state_dict(), 'saved_models/stacked_affine_new')

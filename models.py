@@ -63,8 +63,8 @@ class StackedAffineCouplingFlow(nn.Module):
         self.cuda = cuda
 
         # checkerboard mask
-        dims = int(np.prod(x_shape))
-        mask1 = [1 if n % 2 else 0 for n in range(dims)]
+        *_, d1, d2 = x_shape
+        mask1 = [[1 if (i + j) % 2 else 0 for i in range(d1)] for j in range(d2)]
         mask1 = torch.tensor(mask1).view(x_shape)
         mask2 = 1 - mask1
 
@@ -100,6 +100,12 @@ class StackedAffineCouplingFlow(nn.Module):
     def loss(self, x):
         """Additive coupling layers have unit jacobian so we can just optimise the log probs"""
         y, logdet_j = self.forward(x)
+        y_nans = torch.sum(torch.isnan(y)).item()
+        ldj_nans = torch.sum(torch.isnan(logdet_j)).item()
+        if y_nans > 0:
+            print('{} y nans!'.format(y_nans))
+        if ldj_nans > 0:
+            print('{} ldj nans!'.format(ldj_nans))
         return - torch.mean(torch.sum(Normal(self.prior_mean, self.prior_std).log_prob(y), dim=[1, 2, 3]) + logdet_j) / 784.
 
     def sample(self, device, n, epoch):
